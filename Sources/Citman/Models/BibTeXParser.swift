@@ -40,8 +40,12 @@ struct BibTeXParser {
     private static func parseFields(_ body: String) -> [String: String] {
         var fields: [String: String] = [:]
         
-        // Regex to find key = {value} or key = "value"
-        let fieldPattern = #"(\w+)\s*=\s*[\{"](.*?)[\}"](?=,\s*\w+\s*=|,\s*\}|\s*\Z)"#
+        // Regex to find key = value.
+        // Supports:
+        // 1. {value}
+        // 2. "value"
+        // 3. 1234 (unquoted numbers/identifiers)
+        let fieldPattern = #"(\w+)\s*=\s*(?:\{((?:[^{}]|\\\}|\{[^{}]*\})*)\}|"((?:[^"]|\\")*)"|([0-9a-zA-Z\-]+))"#
         
         let regex: NSRegularExpression
         do {
@@ -54,9 +58,19 @@ struct BibTeXParser {
         let matches = regex.matches(in: body, options: [], range: NSRange(location: 0, length: nsBody.length))
         
         for match in matches {
-            guard match.numberOfRanges >= 3 else { continue }
+            guard match.numberOfRanges >= 5 else { continue }
             let key = nsBody.substring(with: match.range(at: 1)).lowercased()
-            let value = nsBody.substring(with: match.range(at: 2))
+            
+            var value = ""
+            if match.range(at: 2).location != NSNotFound {
+                value = nsBody.substring(with: match.range(at: 2))
+            } else if match.range(at: 3).location != NSNotFound {
+                value = nsBody.substring(with: match.range(at: 3))
+            } else if match.range(at: 4).location != NSNotFound {
+                value = nsBody.substring(with: match.range(at: 4))
+            }
+            
+            // Basic cleanup of BibTeX escaping could go here
             fields[key] = value
         }
         return fields

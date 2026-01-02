@@ -13,15 +13,7 @@ let package = Package(
         .executableTarget(
             name: "Citman",
             path: "Sources/Citman",
-            exclude: ["Info.plist"],
-            linkerSettings: [
-                .unsafeFlags([
-                    "-Xlinker", "-sectcreate",
-                    "-Xlinker", "__TEXT",
-                    "-Xlinker", "__info_plist",
-                    "-Xlinker", "Sources/Citman/Info.plist"
-                ])
-            ]
+            exclude: ["Info.plist"]
         )
     ]
 )
