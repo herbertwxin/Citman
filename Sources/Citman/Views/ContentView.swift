@@ -10,6 +10,9 @@ struct ContentView: View {
     
     // Sorting state
     @State private var sortOrder = [KeyPathComparator(\BibTeXEntry.id)]
+    
+    // Search state
+    @State private var searchText = ""
 
     var body: some View {
         NavigationSplitView {
@@ -58,6 +61,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(selectedCategory ?? "Citations")
+            .navigationSplitViewColumnWidth(min: 400, ideal: 600) // Give more space to the list
         } detail: {
             if let id = selection.first,
                let index = document.entries.firstIndex(where: { $0.id == id }) {
@@ -66,6 +70,7 @@ struct ContentView: View {
                 ContentUnavailableView("No Selection", systemImage: "doc.text", description: Text("Select a citation to view details."))
             }
         }
+        .searchable(text: $searchText, placement: .toolbar, prompt: "Search citations")
         .sheet(isPresented: $showingAddSheet) {
             AddCitationView(document: $document)
         }
@@ -79,10 +84,25 @@ struct ContentView: View {
     }
     
     private var filteredEntries: [BibTeXEntry] {
+        // 1. Filter by Category
+        let categoryFiltered: [BibTeXEntry]
         if selectedCategory == "All" || selectedCategory == nil {
-            return document.entries
+            categoryFiltered = document.entries
         } else {
-            return document.entries.filter { $0.type.lowercased() == selectedCategory?.lowercased() }
+            categoryFiltered = document.entries.filter { $0.type.lowercased() == selectedCategory?.lowercased() }
+        }
+        
+        // 2. Filter by Search Text
+        if searchText.isEmpty {
+            return categoryFiltered
+        } else {
+            return categoryFiltered.filter { entry in
+                entry.id.localizedCaseInsensitiveContains(searchText) ||
+                entry.title.localizedCaseInsensitiveContains(searchText) ||
+                entry.author.localizedCaseInsensitiveContains(searchText) ||
+                entry.year.localizedCaseInsensitiveContains(searchText) ||
+                entry.fields.values.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            }
         }
     }
     
