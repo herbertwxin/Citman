@@ -46,11 +46,16 @@ struct ContentView: View {
                      delete(ids: selection)
                  }
             }
+            .onDeleteCommand {
+                delete(ids: selection)
+            }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
                     Button(action: { showingAddSheet = true }) {
                         Label("Add Citation", systemImage: "plus")
                     }
+                    .keyboardShortcut("n", modifiers: [.command, .shift])
+                    .help("Add a new citation (Cmd+Shift+N)")
                 }
                 
                 ToolbarItem(placement: .destructiveAction) {
@@ -58,6 +63,8 @@ struct ContentView: View {
                         Label("Delete", systemImage: "trash")
                     }
                     .disabled(selection.isEmpty)
+                    .keyboardShortcut(.delete, modifiers: []) // Backup explicit shortcut
+                    .help("Delete selected citations")
                 }
             }
             .navigationTitle(selectedCategory ?? "Citations")
