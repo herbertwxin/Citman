@@ -26,9 +26,6 @@ struct CitmanApp: App {
             // Enables "Sidebar" options in the View menu
             SidebarCommands()
             
-            // Enables "Find", "Spelling", "Substitutions" in the Edit menu
-            TextEditingCommands()
-            
             // Enables Toolbar customization
             ToolbarCommands()
             
