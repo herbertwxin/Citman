@@ -14,6 +14,10 @@ let package = Package(
             name: "Citman",
             path: "Sources/Citman",
             exclude: ["Info.plist"]
+        ),
+        .testTarget(
+            name: "CitmanTests",
+            dependencies: ["Citman"]
         )
     ]
 )

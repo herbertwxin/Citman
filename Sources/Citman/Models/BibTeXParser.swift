@@ -5,30 +5,65 @@ struct BibTeXParser {
     /// Parses a BibTeX string into an array of BibTeXEntry objects.
     static func parse(content: String) -> [BibTeXEntry] {
         var entries: [BibTeXEntry] = []
+        let scalars = Array(content.unicodeScalars)
+        var index = 0
         
-        // Regex to find entries like @article{ID, ... }
-        // 1. Type
-        // 2. ID
-        // 3. Body content
-        let entryPattern = #"@(\w+)\s*\{([^,]*),((?:[^{}]*|\{[^{}]*\})*)\}"#
-        
-        let regex: NSRegularExpression
-        do {
-            regex = try NSRegularExpression(pattern: entryPattern, options: [.dotMatchesLineSeparators])
-        } catch {
-            print("Regex error: \(error)")
-            return []
-        }
-        
-        let nsString = content as NSString
-        let results = regex.matches(in: content, options: [], range: NSRange(location: 0, length: nsString.length))
-        
-        for result in results {
-            guard result.numberOfRanges >= 4 else { continue }
+        while index < scalars.count {
+            // 1. Find '@'
+            while index < scalars.count && scalars[index] != "@" {
+                index += 1
+            }
+            if index >= scalars.count { break }
+            index += 1 // Skip '@'
             
-            let type = nsString.substring(with: result.range(at: 1))
-            let id = nsString.substring(with: result.range(at: 2)).trimmingCharacters(in: .whitespacesAndNewlines)
-            let body = nsString.substring(with: result.range(at: 3))
+            // 2. Parse Type
+            var type = ""
+            while index < scalars.count && (CharacterSet.alphanumerics.contains(scalars[index]) || scalars[index] == "_") {
+                type.append(Character(scalars[index]))
+                index += 1
+            }
+            
+            // Skip whitespace
+            while index < scalars.count && CharacterSet.whitespacesAndNewlines.contains(scalars[index]) {
+                index += 1
+            }
+            
+            // 3. Expect '{'
+            if index < scalars.count && scalars[index] == "{" {
+                index += 1
+            } else {
+                continue // Malformed, skip
+            }
+            
+            // 4. Parse ID
+            var id = ""
+            while index < scalars.count && scalars[index] != "," && scalars[index] != "}" {
+                id.append(Character(scalars[index]))
+                index += 1
+            }
+            id = id.trimmingCharacters(in: .whitespacesAndNewlines)
+            
+            if index < scalars.count && scalars[index] == "," {
+                index += 1 // Skip comma
+            }
+            
+            // 5. Parse Body (capture until matching '}')
+            var body = ""
+            var braceDepth = 1
+            
+            while index < scalars.count && braceDepth > 0 {
+                let char = scalars[index]
+                if char == "{" {
+                    braceDepth += 1
+                } else if char == "}" {
+                    braceDepth -= 1
+                }
+                
+                if braceDepth > 0 {
+                    body.append(Character(char))
+                }
+                index += 1
+            }
             
             let fields = parseFields(body)
             entries.append(BibTeXEntry(id: id, type: type, fields: fields))
@@ -39,40 +74,107 @@ struct BibTeXParser {
     
     private static func parseFields(_ body: String) -> [String: String] {
         var fields: [String: String] = [:]
+        var key = ""
+        var value = ""
         
-        // Regex to find key = value.
-        // Supports:
-        // 1. {value}
-        // 2. "value"
-        // 3. 1234 (unquoted numbers/identifiers)
-        let fieldPattern = #"(\w+)\s*=\s*(?:\{((?:[^{}]|\\\}|\{[^{}]*\})*)\}|"((?:[^"]|\\")*)"|([0-9a-zA-Z\-]+))"#
+        var inKey = true
+        var inValue = false
+        var valueDelimiter: Character? = nil
+        var braceDepth = 0
+        var isEscaped = false
         
-        let regex: NSRegularExpression
-        do {
-            regex = try NSRegularExpression(pattern: fieldPattern, options: [.dotMatchesLineSeparators])
-        } catch {
-            return [:]
-        }
-        
-        let nsBody = body as NSString
-        let matches = regex.matches(in: body, options: [], range: NSRange(location: 0, length: nsBody.length))
-        
-        for match in matches {
-            guard match.numberOfRanges >= 5 else { continue }
-            let key = nsBody.substring(with: match.range(at: 1)).lowercased()
-            
-            var value = ""
-            if match.range(at: 2).location != NSNotFound {
-                value = nsBody.substring(with: match.range(at: 2))
-            } else if match.range(at: 3).location != NSNotFound {
-                value = nsBody.substring(with: match.range(at: 3))
-            } else if match.range(at: 4).location != NSNotFound {
-                value = nsBody.substring(with: match.range(at: 4))
+        // Simple state machine
+        for char in body {
+            if inKey {
+                if char == "=" {
+                    inKey = false
+                    inValue = false // Waiting for value start
+                    key = key.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+                } else if char == "," {
+                     // Trailing comma or empty field, reset
+                    key = ""
+                } else {
+                    key.append(char)
+                }
+            } else {
+                // We are looking for value or inside value
+                if !inValue {
+                    if char.isWhitespace { continue }
+                    
+                    if char == "{" {
+                        inValue = true
+                        valueDelimiter = "}"
+                        braceDepth = 1
+                        value = ""
+                    } else if char == "\"" {
+                        inValue = true
+                        valueDelimiter = "\""
+                        braceDepth = 0
+                        value = ""
+                    } else if char.isNumber || char.isLetter {
+                         // Unquoted value
+                        inValue = true
+                        valueDelimiter = nil // delimiter is comma or closing brace of entry
+                        value = String(char)
+                    }
+                } else {
+                    // Inside value
+                    if let delimiter = valueDelimiter {
+                        if delimiter == "}" {
+                            // Braced value logic
+                            if char == "{" {
+                                braceDepth += 1
+                                value.append(char)
+                            } else if char == "}" {
+                                braceDepth -= 1
+                                if braceDepth == 0 {
+                                    // End of value
+                                    fields[key] = value
+                                    key = ""
+                                    inKey = true // Back to looking for key (after comma)
+                                } else {
+                                    value.append(char)
+                                }
+                            } else {
+                                value.append(char)
+                            }
+                        } else if delimiter == "\"" {
+                            // Quoted value logic
+                            if isEscaped {
+                                value.append(char)
+                                isEscaped = false
+                            } else if char == "\\" {
+                                isEscaped = true
+                                value.append(char)
+                            } else if char == "\"" {
+                                // End of value
+                                fields[key] = value
+                                key = ""
+                                inKey = true
+                            } else {
+                                value.append(char)
+                            }
+                        }
+                    } else {
+                        // Unquoted value (numbers or macros)
+                        if char == "," || char == "}" || char.isNewline {
+                            // End of unquoted value (rough heuristic, assumes well-formedness or regex-extracted body)
+                            fields[key] = value.trimmingCharacters(in: .whitespacesAndNewlines)
+                            key = ""
+                            inKey = true
+                        } else {
+                            value.append(char)
+                        }
+                    }
+                }
             }
-            
-            // Basic cleanup of BibTeX escaping could go here
-            fields[key] = value
         }
+        
+        // Catch last field if no trailing comma
+        if !key.isEmpty && !value.isEmpty {
+             fields[key] = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
         return fields
     }
     

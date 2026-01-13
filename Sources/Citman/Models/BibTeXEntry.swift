@@ -6,9 +6,15 @@ struct BibTeXEntry: Identifiable, Codable, Hashable {
     var fields: [String: String]
     
     // Helper accessors
-    var title: String { fields["title"] ?? "" }
-    var author: String { fields["author"] ?? "" }
-    var year: String { fields["year"] ?? "" }
+    var title: String { clean(fields["title"] ?? "Untitled") }
+    var author: String { clean(fields["author"] ?? "Unknown") }
+    var year: String { clean(fields["year"] ?? "") }
+    
+    /// Removes BibTeX curly braces logic for display
+    private func clean(_ text: String) -> String {
+        text.replacingOccurrences(of: "{", with: "")
+            .replacingOccurrences(of: "}", with: "")
+    }
     
     init(id: String, type: String, fields: [String: String]) {
         self.id = id
