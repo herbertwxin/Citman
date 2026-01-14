@@ -8,7 +8,7 @@ APP_BUNDLE="${APP_NAME}.app"
 INFO_PLIST="Sources/Citman/Info.plist"
 
 echo "🚀 Building ${APP_NAME}..."
-swift build -c release
+swift build -c release "$@"
 
 # Create the App Bundle Structure
 echo "📂 Creating App Bundle..."
@@ -23,6 +23,10 @@ cp "${BUILD_DIR}/${APP_NAME}" "${APP_BUNDLE}/Contents/MacOS/"
 # Copy Info.plist (Crucial for File Associations)
 echo "📝 Copying Info.plist..."
 cp "${INFO_PLIST}" "${APP_BUNDLE}/Contents/Info.plist"
+
+# Copy Icon
+echo "🖼️ Copying Icon..."
+cp "Sources/Citman/AppIcon.icns" "${APP_BUNDLE}/Contents/Resources/AppIcon.icns"
 
 # Set Executable Permissions
 chmod +x "${APP_BUNDLE}/Contents/MacOS/${APP_NAME}"
