@@ -18,16 +18,14 @@ struct ContentView: View {
         NavigationSplitView {
             List(selection: $selectedCategory) {
                 Section("Library") {
-                    NavigationLink(value: "All") {
-                        Label("All Citations", systemImage: "tray.full")
-                    }
+                    Label("All Citations", systemImage: "tray.full")
+                        .tag("All")
                 }
                 
                 Section("Types") {
                     ForEach(allEntryTypes, id: \.self) { type in
-                        NavigationLink(value: type) {
-                            Label(type.capitalized, systemImage: iconForType(type))
-                        }
+                        Label(type.capitalized, systemImage: iconForType(type))
+                            .tag(type)
                     }
                 }
             }
@@ -68,7 +66,7 @@ struct ContentView: View {
                 }
             }
             .navigationTitle(selectedCategory ?? "Citations")
-            .navigationSplitViewColumnWidth(min: 400, ideal: 600) // Give more space to the list
+            .navigationSplitViewColumnWidth(min: 300, ideal: 450) // Balanced width for list and detail
         } detail: {
             if let id = selection.first,
                let index = document.entries.firstIndex(where: { $0.id == id }) {
