@@ -14,6 +14,15 @@
 
 ## Installation
 
+### Via Homebrew (Recommended)
+
+You can easily install Citman using [Homebrew](https://brew.sh/):
+
+```bash
+brew tap herbertwxin/citman
+brew install citman
+```
+
 ### From Source
 
 1.  **Clone the repository:**
