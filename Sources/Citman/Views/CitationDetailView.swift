@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct CitationDetailView: View {
     @Binding var entry: BibTeXEntry
@@ -18,9 +19,17 @@ struct CitationDetailView: View {
                         Text("Citation Key")
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        TextField("ID", text: $entry.id)
-                            .font(.system(.body, design: .monospaced))
-                            .textFieldStyle(.roundedBorder)
+                        HStack {
+                            TextField("ID", text: $entry.id)
+                                .font(.system(.body, design: .monospaced))
+                                .textFieldStyle(.roundedBorder)
+                            
+                            Button(action: { entry.id = entry.generateKey() }) {
+                                Image(systemName: "wand.and.stars")
+                            }
+                            .buttonStyle(.plain)
+                            .help("Auto-generate Citation Key")
+                        }
                     }
                     
                     VStack(alignment: .leading) {
@@ -85,14 +94,27 @@ struct CitationDetailView: View {
                 Spacer()
             }
             .padding(.vertical)
-        }
-        .background(Color(NSColor.controlBackgroundColor)) // Native background
-    }
-    
-    // MARK: - Subviews
-    
-    @ViewBuilder
-    private func fieldRow(key: String, label: String) -> some View {
+                }
+                .background(Color(NSColor.controlBackgroundColor)) // Native background
+                .toolbar {
+                    ToolbarItem(placement: .automatic) {
+                        Button(action: copyToClipboard) {
+                            Label("Copy BibTeX", systemImage: "doc.on.doc")
+                        }
+                        .help("Copy citation as BibTeX")
+                    }
+                }
+            }
+            
+            // MARK: - Subviews
+            
+            private func copyToClipboard() {
+                let pasteboard = NSPasteboard.general
+                pasteboard.clearContents()
+                pasteboard.setString(entry.toBibTeX(), forType: .string)
+            }
+        
+            @ViewBuilder    private func fieldRow(key: String, label: String) -> some View {
         GridRow {
             Text(label)
                 .font(.subheadline)
